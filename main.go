@@ -32,39 +32,36 @@ func init() {
 	}
 	db = c.Database(os.Getenv("DB_NAME"))
 	col = db.Collection("state_data")
-
-}
-
-func main() {
-	godotenv.Load()
 	client := redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("REDIS_URI"),
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
 	})
-	pong, err := client.Ping().Result()
-	fmt.Println(pong, err)
-
 	err = client.Set("name", "Elliot", 0).Err()
-	// if there has been an error setting the value
-	// handle the error
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Can not connect to redis: %v", err)
 	}
-
 	val, err := client.Get("name").Result()
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
+	log.Println(val)
+}
 
-	fmt.Println(val)
-
+func main() {
+	godotenv.Load()
 	e := echo.New()
 	e.Pre(middleware.RemoveTrailingSlash())
+	h := handlers.CovidInfoHandler{Col: col}
+
 	e.GET("/knockknock", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Hello bhai")
+		return c.String(http.StatusOK, "Hello there!!")
 	})
-	e.GET("/covid-info", handlers.InsertCovidInfo)
+
+	e.POST("/covid-info", h.InsertCovidInfo)
+
+	e.GET("/covid-info", h.GetCovidInfo)
+
 	e.Logger.Print("Listening to port %s", os.Getenv("PORT"))
 	e.Logger.Fatal(e.Start(fmt.Sprintf("0.0.0.0:%s", os.Getenv("PORT"))))
 }
