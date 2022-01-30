@@ -18,7 +18,7 @@ type StateData struct {
 	ActiveCase int32
 }
 
-func GetCovidData() []StateData {
+func GetCovidData() ([]StateData, int32) {
 	toalCase := int32(0)
 	resp, err := http.Get("https://data.covid19india.org/v4/min/data.min.json")
 	if err != nil {
@@ -37,7 +37,5 @@ func GetCovidData() []StateData {
 		listResp = append(
 			listResp, StateData{StateCode: state, ActiveCase: data.Total.Confirmed})
 	}
-	listResp = append(
-		listResp, StateData{StateCode: "total", ActiveCase: toalCase})
-	return listResp
+	return listResp, toalCase
 }

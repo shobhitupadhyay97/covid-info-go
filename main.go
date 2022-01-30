@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -38,15 +38,7 @@ func init() {
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
 	})
-	err = client.Set("name", "Elliot", 0).Err()
-	if err != nil {
-		log.Fatalf("Can not connect to redis: %v", err)
-	}
-	val, err := client.Get("name").Result()
-	if err != nil {
-		log.Println(err)
-	}
-	log.Println(val)
+
 }
 
 func main() {
