@@ -71,19 +71,12 @@ func (h *CovidInfoHandler) InsertCovidInfoV2(c echo.Context) error {
 	return c.JSON(http.StatusCreated, covidInfo)
 }
 
-func (h *CovidInfoHandler) GetCovidInfo(c echo.Context) error {
-	// "26.45918", "80.329288"
-	lat := c.QueryParam("lat")
-	long := c.QueryParam("long")
+func getStateCode(ctx context.Context, lat string, long string, redisClient redis.Client) string {
 	latLongKey := lat + long + "STATE_MAP"
-	fmt.Println(latLongKey)
-	ctx := context.Background()
-	stateCode := "UP"
-	stateCode, err := h.Redis.Get(ctx, latLongKey).Result()
-	fmt.Println(latLongKey, stateCode, err)
+	stateCode, err := redisClient.Get(ctx, latLongKey).Result()
 	if err == redis.Nil {
 		locationInfo := external.GetLoacationInfo(lat, long)
-		err := h.Redis.Set(ctx, latLongKey, locationInfo.StateCode, 30*time.Minute).Err()
+		err := redisClient.Set(ctx, latLongKey, locationInfo.StateCode, 30*time.Minute).Err()
 		if err != nil {
 			log.Fatalf("Can not connect to redis: %v", err)
 		}
@@ -91,33 +84,46 @@ func (h *CovidInfoHandler) GetCovidInfo(c echo.Context) error {
 	} else if err != nil {
 		log.Fatalf("Error while getting lat, long to state code mapping %v", err)
 	}
-	val, err := h.Redis.HGetAll(ctx, stateCode).Result()
+	return stateCode
+}
+
+func getStateCovidData(ctx context.Context, stateCode string, redisClient redis.Client, mongoCollection database.CollectionAPI) map[string]interface{} {
+	fieldsMap := make(map[string]interface{})
+	val, err := redisClient.HGetAll(ctx, stateCode).Result()
 	if err != nil {
 		log.Fatalf("Error while getting state covid data from redis %v", err)
 	}
 	_, exists := val["state_code"]
-	fmt.Println(val)
 	if exists {
-		fmt.Println("got value from redis")
-		return c.JSON(http.StatusOK, val)
+		fieldsMap["_id"] = val["_id"]
+		fieldsMap["state_code"] = val["state_code"]
+		fieldsMap["active_case"] = val["active_case"]
+		fieldsMap["sync_time"] = val["sync_time"]
+		fieldsMap["total_case"] = val["total_case"]
+		return fieldsMap
 	}
 	var stateInfo CovidStateInfo
 	filter := bson.D{{Key: "state_code", Value: stateCode}}
-	if err := h.Col.FindOne(ctx, filter).Decode(&stateInfo); err != nil {
+	if err := mongoCollection.FindOne(ctx, filter).Decode(&stateInfo); err != nil {
 		log.Fatal(err)
-		return err
 	}
-	fmt.Println("failed to get data from redis")
-	fieldsMap := make(map[string]interface{})
 	fieldsMap["_id"] = stateInfo.ID.Hex()
 	fieldsMap["state_code"] = stateInfo.Name
 	fieldsMap["active_case"] = stateInfo.ActiveCase
 	fieldsMap["sync_time"] = stateInfo.LastSync.String()
 	fieldsMap["total_case"] = stateInfo.TotalCases
-	err = h.Redis.HMSet(context.Background(), stateInfo.Name, fieldsMap).Err()
+	err = redisClient.HMSet(context.Background(), stateInfo.Name, fieldsMap).Err()
 	if err != nil {
 		log.Fatalf("Can not connect to redis: %v", err)
 	}
+	return fieldsMap
+}
 
+func (h *CovidInfoHandler) GetCovidInfo(c echo.Context) error {
+	lat := c.QueryParam("lat")
+	long := c.QueryParam("long")
+	ctx := context.Background()
+	stateCode := getStateCode(ctx, lat, long, *h.Redis)
+	stateInfo := getStateCovidData(ctx, stateCode, *h.Redis, h.Col)
 	return c.JSON(http.StatusOK, stateInfo)
 }
