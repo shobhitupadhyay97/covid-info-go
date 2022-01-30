@@ -13,6 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/sync/errgroup"
 )
 
 type CovidStateInfo struct {
@@ -23,7 +24,8 @@ type CovidStateInfo struct {
 }
 
 type CovidInfoHandler struct {
-	Col database.CollectionAPI
+	Col   database.CollectionAPI
+	Redis database.RedisAPI
 }
 
 func (h *CovidInfoHandler) InsertCovidInfo(c echo.Context) error {
@@ -40,6 +42,28 @@ func (h *CovidInfoHandler) InsertCovidInfo(c echo.Context) error {
 			fmt.Println(err)
 		}
 	}
+	return c.JSON(http.StatusCreated, covidInfo)
+}
+
+func (h *CovidInfoHandler) InsertCovidInfoV2(c echo.Context) error {
+	covidInfo := external.GetCovidData()
+	today := time.Now()
+	g, _ := errgroup.WithContext(context.Background())
+	for _, stateData := range covidInfo {
+		filter := bson.D{{Key: "state_code", Value: stateData.StateCode}}
+		update := bson.D{{Key: "$set", Value: bson.D{
+			{Key: "active_case", Value: stateData.ActiveCase},
+			{Key: "sync_time", Value: today}}}}
+		opts := options.Update().SetUpsert(true)
+		g.Go(func() error {
+			_, err := h.Col.UpdateOne(context.TODO(), filter, update, opts)
+			if err != nil {
+				fmt.Println(err)
+			}
+			return nil
+		})
+	}
+	g.Wait()
 	return c.JSON(http.StatusCreated, covidInfo)
 }
 

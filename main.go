@@ -17,10 +17,11 @@ import (
 )
 
 var (
-	c   *mongo.Client
-	db  *mongo.Database
-	col *mongo.Collection
-	err error
+	c      *mongo.Client
+	db     *mongo.Database
+	col    *mongo.Collection
+	client *redis.Client
+	err    error
 )
 
 func init() {
@@ -32,7 +33,7 @@ func init() {
 	}
 	db = c.Database(os.Getenv("DB_NAME"))
 	col = db.Collection("state_data")
-	client := redis.NewClient(&redis.Options{
+	client = redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("REDIS_URI"),
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
@@ -52,13 +53,14 @@ func main() {
 	godotenv.Load()
 	e := echo.New()
 	e.Pre(middleware.RemoveTrailingSlash())
-	h := handlers.CovidInfoHandler{Col: col}
+	h := handlers.CovidInfoHandler{Col: col, Redis: client}
 
 	e.GET("/knockknock", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Hello there!!")
 	})
 
 	e.POST("/covid-info", h.InsertCovidInfo)
+	e.POST("/covid-info-goroutine", h.InsertCovidInfoV2)
 
 	e.GET("/covid-info", h.GetCovidInfo)
 
