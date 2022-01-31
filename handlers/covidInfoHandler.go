@@ -30,6 +30,15 @@ type CovidInfoHandler struct {
 	Redis *redis.Client
 }
 
+// StoreCovidData godoc
+// @Summary      Get data from covid api and store in mongoDB
+// @Description  Get data from covid api and store in mongoDB
+// @Tags         CovidData
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  []external.StateData
+// @Failure      400  {object}  string "error"
+// @Router       /covid-info [post]
 func (h *CovidInfoHandler) InsertCovidInfo(c echo.Context) error {
 	covidInfo, totalCase := external.GetCovidData()
 	today := time.Now()
@@ -48,6 +57,15 @@ func (h *CovidInfoHandler) InsertCovidInfo(c echo.Context) error {
 	return c.JSON(http.StatusCreated, covidInfo)
 }
 
+// StoreCovidData godoc
+// @Summary      Get data from covid api and store in mongoDB using goroutine
+// @Description  Get data from covid api and store in mongoDB using goroutine, faster than normal api
+// @Tags         CovidData
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  []external.StateData
+// @Failure      400  {object}  string "error"
+// @Router       /covid-info-goroutine [post]
 func (h *CovidInfoHandler) InsertCovidInfoV2(c echo.Context) error {
 	covidInfo, totalCase := external.GetCovidData()
 	today := time.Now()
@@ -119,6 +137,17 @@ func getStateCovidData(ctx context.Context, stateCode string, redisClient redis.
 	return fieldsMap
 }
 
+// StoreCovidData godoc
+// @Summary      Get api for state covid info
+// @Description  Get api for state covid info
+// @Tags         CovidData
+// @Accept       json
+// @Produce      json
+// @param lat query string true "latitude"
+// @param long query string true "longitude"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  string "error"
+// @Router       /covid-info [get]
 func (h *CovidInfoHandler) GetCovidInfo(c echo.Context) error {
 	lat := c.QueryParam("lat")
 	long := c.QueryParam("long")

@@ -1,0 +1,98 @@
+basePath: /
+definitions:
+  external.StateData:
+    properties:
+      activeCase:
+        type: integer
+      stateCode:
+        type: string
+    type: object
+host: https://covid-info-go.herokuapp.com
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a sample server Petstore server.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Swagger Example API
+  version: "1.0"
+paths:
+  /covid-info:
+    get:
+      consumes:
+      - application/json
+      description: Get api for state covid info
+      parameters:
+      - description: latitude
+        in: query
+        name: lat
+        required: true
+        type: string
+      - description: longitude
+        in: query
+        name: long
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: error
+          schema:
+            type: string
+      summary: Get api for state covid info
+      tags:
+      - CovidData
+    post:
+      consumes:
+      - application/json
+      description: Get data from covid api and store in mongoDB
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/external.StateData'
+            type: array
+        "400":
+          description: error
+          schema:
+            type: string
+      summary: Get data from covid api and store in mongoDB
+      tags:
+      - CovidData
+  /covid-info-goroutine:
+    post:
+      consumes:
+      - application/json
+      description: Get data from covid api and store in mongoDB using goroutine, faster
+        than normal api
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/external.StateData'
+            type: array
+        "400":
+          description: error
+          schema:
+            type: string
+      summary: Get data from covid api and store in mongoDB using goroutine
+      tags:
+      - CovidData
+swagger: "2.0"
